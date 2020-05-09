@@ -45,6 +45,7 @@
 UART_HandleTypeDef huart2;
 
 osThreadId defaultTaskHandle;
+osTimerId secondTickHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -54,6 +55,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 void StartDefaultTask(void const * argument);
+void secondTickCallback(void const * argument);
 
 /* USER CODE BEGIN PFP */
 
@@ -62,11 +64,14 @@ void StartDefaultTask(void const * argument);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define NCOL 80
-#define NROW 24
+#define NROW 23
 
 #define SCREEN_MAIN_MENU 0
 #define SCREEN_INPUT_SIZE 1
 #define SCREEN_PLAY 2
+#define SCREEN_PAUSE 3
+#define SCREEN_HOW_TO_PLAY 4
+#define SCREEN_CONGRATULATION 5
 
 #define CHAR_LEFT 'a'
 #define CHAR_RIGHT 'd'
@@ -76,6 +81,8 @@ void StartDefaultTask(void const * argument);
 #define CHAR_BACKSPACE 8
 #define CHAR_ESC '\033'
 #define CHAR_SPACE ' '
+
+int curr_time = 0;
 
 char screen[NROW + 1][NCOL + 1];
 char input;
@@ -99,6 +106,13 @@ void swap(int* a, int* b) {
  */
 
 char* MAIN_MENU[] = {"START", "HOW TO PLAY"};
+char* PAUSE_MENU[] = {"RESUME", "RESTART", "EXIT"};
+
+char* HOW_TO_PLAY[] = {
+	"Press A, D to move left / right",
+	"Press SPACE to toggle swap mode",
+	"Press ESC to pause or restart"
+};
 
 /*
  ============== SCREEN ==============
@@ -183,8 +197,17 @@ void fillmenu(char** menudata, int menulen, int activei) {
 	int LOGO_ROW = 8;
 	int START_ROW = 12;
 
+	if (menulen > 2) {
+		LOGO_ROW -= 2;
+		START_ROW -= 2;
+	}
+
 	char* TITLE;
-	TITLE = "SWAPSORT";
+	if (curr_time % 2 == 0) {
+		TITLE = "SWAPSORT";
+	} else {
+		TITLE = "SORTSWAP";
+	}
 
 	fillstringcenter(TITLE, LOGO_ROW, 0);
 
@@ -206,6 +229,18 @@ int number_len = 0;
 int number_active_i = 0;
 int number_swap_mode = 0;
 
+int scan_count = 0;
+int swap_count = 0;
+
+// Score
+char swap_score_text[100];
+char scan_score_text[100];
+
+int play_start_time = 0;
+char play_time_text[100];
+
+int is_playing = 0;
+
 void makestick(int x, int height, char c) {
 	for (int i = NROW - 1; i >= max(NROW - height, 0); i--) {
 		screen[i][x] = c;
@@ -218,14 +253,33 @@ void initstick(int len) {
 		numbers[i] = randint(1, NROW - 4);
 	}
 	number_active_i = 0;
+	number_swap_mode = 0;
+	play_start_time = curr_time;
+	scan_count = 0;
+	swap_count = 0;
+	is_playing = 1;
 }
 
 void drawstick() {
 	int stickwidth = NCOL / number_len;
 	int stickmargin = (NCOL % number_len) / 2;
 	for (int i = stickmargin, j = 0; j < number_len; i += stickwidth, j++) {
-		makestick(i, numbers[j], (number_active_i == j) ? (number_swap_mode ? '#' : '*') : '|');
+		makestick(i, numbers[j], (number_active_i == j) ? (number_swap_mode ? '#' : 'X') : '|');
 	}
+
+	sprintf(swap_score_text, "SWAP %d", swap_count);
+	sprintf(scan_score_text, "SCAN %d", scan_count);
+
+	fillstring(swap_score_text, 0, 0);
+	fillstring(scan_score_text, 1, 0);
+
+	// Play time
+	int play_min = (curr_time - play_start_time) / 60;
+	int play_second = (curr_time - play_start_time) % 60;
+
+	sprintf(play_time_text, "%02d:%02d", play_min, play_second);
+
+	fillstring(play_time_text, 0, NCOL-5);
 }
 
 /*
@@ -278,6 +332,50 @@ void render_text_input_screen(char* title) {
 }
 
 /*
+ * ============== HOW TO PLAY ==============
+ */
+void render_how_to_play() {
+	int TITLE_ROW = 5;
+	int CONTENT_ROW = 9;
+	int CONTINUE_ROW = 17;
+
+	fillstringcenter("HOW TO PLAY", TITLE_ROW, 0);
+
+	for(int i = 0; i < 3; i++) {
+		fillstringcenter(HOW_TO_PLAY[i], CONTENT_ROW + i*2, 0);
+	}
+
+	fillstringcenter("Press any key to continue...", CONTINUE_ROW, 0);
+}
+
+/*
+ * ============== CONGRATULATION ==============
+ */
+int finish_time = 0;
+
+void render_congratulation() {
+	int TITLE_ROW = 5;
+	int CONTENT_ROW = 11;
+	int CONTINUE_ROW = 18;
+
+	fillstringcenter("CONGRATULATION", TITLE_ROW, 0);
+	fillstringcenter("YOU HAVE SORTED IT USING", TITLE_ROW + 1, 0);
+
+	int play_min = (finish_time - play_start_time) / 60;
+	int play_second = (finish_time - play_start_time) % 60;
+
+	sprintf(swap_score_text, "SWAP %d", swap_count);
+	sprintf(scan_score_text, "SCAN %d", scan_count);
+	sprintf(play_time_text, "TIME %02d:%02d", play_min, play_second);
+
+	fillstring(swap_score_text, CONTENT_ROW, 35);
+	fillstring(scan_score_text, CONTENT_ROW + 1, 35);
+	fillstring(play_time_text, CONTENT_ROW + 2, 35);
+
+	fillstringcenter("Press ENTER to continue...", CONTINUE_ROW, 0);
+}
+
+/*
  * ============== SCREEN CONTROLLER ==============
  */
 
@@ -287,9 +385,18 @@ void change_screen(int name) {
 	case SCREEN_MAIN_MENU:
 		menu_activei = 0;
 		menu_maxi = 1;
+		break;
 	case SCREEN_INPUT_SIZE:
 		clear_text_input();
 		text_max_len = 2;
+		break;
+	case SCREEN_PAUSE:
+		menu_activei = 0;
+		menu_maxi = 2;
+		break;
+	case SCREEN_CONGRATULATION:
+		is_playing = 0;
+		finish_time = curr_time;
 		break;
 	}
 }
@@ -303,7 +410,6 @@ void change_screen(int name) {
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	srand(time(0));
 	change_screen(SCREEN_MAIN_MENU);
   /* USER CODE END 1 */
   
@@ -328,7 +434,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart2, &input, sizeof(input));
+
   /* USER CODE END 2 */
 
   /* USER CODE BEGIN RTOS_MUTEX */
@@ -338,6 +444,12 @@ int main(void)
   /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
+
+  /* Create the timer(s) */
+  /* definition and creation of secondTick */
+  osTimerDef(secondTick, secondTickCallback);
+  secondTickHandle = osTimerCreate(osTimer(secondTick), osTimerPeriodic, NULL);
+  osTimerStart(secondTickHandle, 1000);
 
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
@@ -349,7 +461,7 @@ int main(void)
 
   /* Create the thread(s) */
   /* definition and creation of defaultTask */
-  osThreadDef(defaultTask, StartDefaultTask, osPriorityLow, 0, 128);
+  osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
   defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -496,6 +608,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		case CHAR_ENTER:
 			if (menu_activei == 0) {
 				change_screen(SCREEN_INPUT_SIZE);
+			} else if (menu_activei == 1) {
+				change_screen(SCREEN_HOW_TO_PLAY);
 			}
 			break;
 		}
@@ -521,22 +635,70 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 			change_screen(SCREEN_MAIN_MENU);
 		}
 		break;
+
 	case SCREEN_PLAY:
 		old_number_active_i = number_active_i;
 		switch(input) {
 		case CHAR_LEFT:
 			number_active_i--;
 			if (number_active_i < 0) number_active_i = number_len - 1;
-			if (number_swap_mode) swap(&numbers[old_number_active_i], &numbers[number_active_i]);
+			if (number_swap_mode) {
+				swap(&numbers[old_number_active_i], &numbers[number_active_i]);
+				swap_count++;
+			} else {
+				scan_count++;
+			}
 			break;
 		case CHAR_RIGHT:
 			number_active_i++;
 			if (number_active_i >= number_len) number_active_i = 0;
-			if (number_swap_mode) swap(&numbers[old_number_active_i], &numbers[number_active_i]);
+			if (number_swap_mode) {
+				swap(&numbers[old_number_active_i], &numbers[number_active_i]);
+				swap_count++;
+			} else {
+				scan_count++;
+			}
 			break;
 		case CHAR_SPACE:
 			number_swap_mode = !number_swap_mode;
+			break;
+		case CHAR_ESC:
+			change_screen(SCREEN_PAUSE);
+			break;
 		}
+		break;
+
+	case SCREEN_PAUSE:
+		switch(input) {
+		case CHAR_DOWN:
+			menu_down();
+			break;
+		case CHAR_UP:
+			menu_up();
+			break;
+		case CHAR_ENTER:
+			if (menu_activei == 0) {
+				change_screen(SCREEN_PLAY);
+			} else if (menu_activei == 1) {
+				is_playing = 0;
+				change_screen(SCREEN_INPUT_SIZE);
+			} else if (menu_activei == 2) {
+				is_playing = 0;
+				change_screen(SCREEN_MAIN_MENU);
+			}
+			break;
+		case CHAR_ESC:
+			change_screen(SCREEN_PLAY);
+			break;
+		}
+		break;
+
+	case SCREEN_HOW_TO_PLAY:
+	case SCREEN_CONGRATULATION:
+		if (input == CHAR_ENTER) {
+			change_screen(SCREEN_MAIN_MENU);
+		}
+		break;
 	}
 
 	HAL_UART_Receive_IT(&huart2, &input, sizeof(input));
@@ -553,9 +715,26 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 void StartDefaultTask(void const * argument)
 {
   /* USER CODE BEGIN 5 */
+	HAL_UART_Receive_IT(&huart2, &input, sizeof(input));
 	/* Infinite loop */
 	for (;;) {
 		resetscreen();
+
+		// Check for play sorted
+		if (is_playing) {
+			int is_sorted = 1;
+			for(int i = 0;i<number_len-1;i++) {
+				if (numbers[i] > numbers[i+1]) {
+					is_sorted = 0;
+					break;
+				}
+			}
+
+			if (is_sorted) {
+				change_screen(SCREEN_CONGRATULATION);
+			}
+		}
+
 		switch(curr_screen) {
 		case SCREEN_MAIN_MENU:
 			fillmenu(MAIN_MENU, 2, menu_activei);
@@ -566,14 +745,31 @@ void StartDefaultTask(void const * argument)
 		case SCREEN_PLAY:
 			drawstick();
 			break;
+		case SCREEN_PAUSE:
+			fillmenu(PAUSE_MENU, 3, menu_activei);
+			break;
+		case SCREEN_HOW_TO_PLAY:
+			render_how_to_play();
+			break;
+		case SCREEN_CONGRATULATION:
+			render_congratulation();
+			break;
 		}
 
-		//initstick(80);
-		//drawstick();
+		int not_used = rand();
+
 		printscreen();
 		osDelay(200);
 	}
   /* USER CODE END 5 */ 
+}
+
+/* secondTickCallback function */
+void secondTickCallback(void const * argument)
+{
+  /* USER CODE BEGIN secondTickCallback */
+	curr_time++;
+  /* USER CODE END secondTickCallback */
 }
 
 /**

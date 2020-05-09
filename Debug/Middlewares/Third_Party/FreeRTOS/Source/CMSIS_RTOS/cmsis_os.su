@@ -11,10 +11,10 @@ cmsis_os.c:313:10:osThreadYield	4	static,ignoring_inline_asm
 cmsis_os.c:327:10:osThreadSetPriority	16	static
 cmsis_os.c:343:12:osThreadGetPriority	16	static
 cmsis_os.c:365:10:osDelay	24	static
-cmsis_os.c:400:11:osTimerCreate	24	static
-cmsis_os.c:447:10:osTimerStart	24	static
-cmsis_os.c:486:10:osTimerStop	24	static
-cmsis_os.c:515:10:osTimerDelete	24	static
+cmsis_os.c:400:11:osTimerCreate	32	static
+cmsis_os.c:447:10:osTimerStart	40	static,ignoring_inline_asm
+cmsis_os.c:486:10:osTimerStop	32	static,ignoring_inline_asm
+cmsis_os.c:515:10:osTimerDelete	32	static
 cmsis_os.c:545:9:osSignalSet	32	static,ignoring_inline_asm
 cmsis_os.c:586:9:osSignalWait	48	static
 cmsis_os.c:640:11:osMutexCreate	16	static

@@ -23,6 +23,7 @@ tasks.c:2583:12:xTaskIncrementTick	32	static,ignoring_inline_asm
 tasks.c:2845:6:vTaskSwitchContext	32	static,ignoring_inline_asm
 tasks.c:2904:6:vTaskPlaceOnEventList	24	static,ignoring_inline_asm
 tasks.c:2921:6:vTaskPlaceOnUnorderedEventList	32	static,ignoring_inline_asm
+tasks.c:2947:7:vTaskPlaceOnEventListRestricted	32	static,ignoring_inline_asm
 tasks.c:2978:12:xTaskRemoveFromEventList	32	static,ignoring_inline_asm
 tasks.c:3046:6:vTaskRemoveFromUnorderedEventList	32	static,ignoring_inline_asm
 tasks.c:3080:6:vTaskSetTimeOutState	24	static,ignoring_inline_asm

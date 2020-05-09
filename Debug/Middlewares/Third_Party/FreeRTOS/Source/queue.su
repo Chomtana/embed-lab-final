@@ -28,3 +28,4 @@ queue.c:2316:12:xQueueIsQueueFullFromISR	24	static,ignoring_inline_asm
 queue.c:2611:7:vQueueAddToRegistry	24	static
 queue.c:2640:14:pcQueueGetName	24	static
 queue.c:2668:7:vQueueUnregisterQueue	24	static
+queue.c:2700:7:vQueueWaitForMessageRestricted	32	static

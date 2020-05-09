@@ -1,6 +1,8 @@
 #MicroXplorer Configuration settings - do not modify
-FREERTOS.IPParameters=Tasks01
+FREERTOS.IPParameters=Tasks01,configUSE_TIMERS,Timers01
 FREERTOS.Tasks01=defaultTask,0,128,StartDefaultTask,Default,NULL
+FREERTOS.Timers01=secondTick,secondTickCallback,osTimerPeriodic,Default,NULL,Dynamic,NULL
+FREERTOS.configUSE_TIMERS=1
 File.Version=6
 KeepUserPlacement=false
 Mcu.Family=STM32F4
