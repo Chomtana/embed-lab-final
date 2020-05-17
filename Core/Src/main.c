@@ -606,6 +606,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 			menu_up();
 			break;
 		case CHAR_ENTER:
+		case CHAR_SPACE:
 			if (menu_activei == 0) {
 				change_screen(SCREEN_INPUT_SIZE);
 			} else if (menu_activei == 1) {
@@ -625,6 +626,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 				if (size > 0 && size <= 80) {
 					initstick(size);
 					change_screen(SCREEN_PLAY);
+					text_input_hint = "";
 				} else {
 					text_input_hint = "Must be 1 - 80";
 				}
@@ -633,6 +635,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 			text_input_backspace();
 		} else if (input == CHAR_ESC) {
 			change_screen(SCREEN_MAIN_MENU);
+			text_input_hint = "";
 		}
 		break;
 
@@ -677,6 +680,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 			menu_up();
 			break;
 		case CHAR_ENTER:
+		case CHAR_SPACE:
 			if (menu_activei == 0) {
 				change_screen(SCREEN_PLAY);
 			} else if (menu_activei == 1) {
@@ -756,7 +760,17 @@ void StartDefaultTask(void const * argument)
 			break;
 		}
 
-		int not_used = rand();
+		if (curr_screen == SCREEN_CONGRATULATION) {
+			if (curr_time % 2 == 0) {
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+			} else {
+				HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+			}
+		} else {
+			HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+		}
+
+		rand();
 
 		printscreen();
 		osDelay(200);
